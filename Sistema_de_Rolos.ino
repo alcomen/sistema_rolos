@@ -1,8 +1,16 @@
 #include <CheapStepper.h> // 
 #include <ESP8266WiFi.h> // Importa a Biblioteca ESP8266WiFi
 #include <PubSubClient.h> // Importa a Biblioteca PubSubClient
+#include <DallasTemperature.h>
+#include <OneWire.h>
 
 #define wifi
+
+#define ONE_WIRE_BUS 5                          //D1 pin of nodemcu
+
+OneWire oneWire(ONE_WIRE_BUS);
+ 
+DallasTemperature sensors(&oneWire);            // Pass the oneWire reference to Dallas Temperature.
 
 // next, declare the stepper
 // and connect pins 8,9,10,11 to IN1,IN2,IN3,IN4 on ULN2003 board
@@ -59,6 +67,7 @@ void setup() {
 
     //inicializações:
     delay(2000);
+    sensors.begin();
     InitOutput();
     initSerial();
 #ifdef wifi
@@ -66,7 +75,7 @@ void setup() {
     initMQTT();
 #endif
 
-  // let's run the stepper at 12rpm (if using 5V power) - the default is ~16 rpm
+  // let's run the stepper at 12rpm (if using 5V power) - the default is ~16 rpm...
 
   stepper.setRpm(speed_stepper);
 
@@ -81,6 +90,8 @@ void setup() {
 
 void loop() {
 
+  char msg_temp[10];
+
     int stepsLeft = stepper.getStepsLeft();
 #ifdef wifi
     //garante funcionamento das conexões WiFi e ao broker MQTT
@@ -92,6 +103,12 @@ void loop() {
   // we need to call run() during loop()
   // in order to keep the stepper moving
   // if we are using non-blocking moves
+  sensors.requestTemperatures();                // Send the command to get temperatures  
+  Serial.println("Temperature is: ");
+  Serial.println(sensors.getTempCByIndex(0));
+
+  sprintf (msg_temp, "%3.1f", sensors.getTempCByIndex(0));
+  MQTT.publish(TopicTemp, msg_temp);
 
     if(flagOut)
     {
