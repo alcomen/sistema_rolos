@@ -1,4 +1,4 @@
-#include <CheapStepper.h> // 
+//#include <CheapStepper.h> // 
 #include <ESP8266WiFi.h> // Importa a Biblioteca ESP8266WiFi
 #include <PubSubClient.h> // Importa a Biblioteca PubSubClient
 #include <DallasTemperature.h>
@@ -23,20 +23,12 @@ DallasTemperature sensors(&oneWire);            // Pass the oneWire reference to
 
 #define ID_MQTT  "Rolo"     //id mqtt (para identificação de sessão)
 
-CheapStepper stepper(D5,D6,D7,D8);
-
 char speed_stepper = 20;
 const int stepsPerRevolution = 200;
 
+
 char msg[5];
 
-int speed_motor = 20;
-
- // let's also create a boolean variable to save the direction of our rotation
- // and a timer variable to keep track of move times
-
-bool moveClockwise = true;
-unsigned long moveStartTime = 0; // this will save the time (millis()) when we started each new move
 
 // WIFI
 //const char* SSID = "UnivapWifi"; // SSID / nome da rede WI-FI que deseja se conectar
@@ -75,24 +67,33 @@ void setup() {
     initMQTT();
 #endif
 
+  pinMode(D5, OUTPUT);
+  pinMode(D6, OUTPUT);
+  pinMode(D7, OUTPUT);
+  pinMode(D8, OUTPUT);
+
+
+  digitalWrite(D5, 0);
+  digitalWrite(D6, 0);
+  digitalWrite(D7, 0);
+  digitalWrite(D8, 0);
   // let's run the stepper at 12rpm (if using 5V power) - the default is ~16 rpm...
 
-  stepper.setRpm(speed_stepper);
+  //stepper.setRpm(speed_stepper);
 
   // let's print out the RPM to make sure the setting worked
  
   Serial.begin(115200);
-  Serial.print("stepper RPM: "); Serial.print(stepper.getRpm());
+  //Serial.print("stepper RPM: "); Serial.print(stepper.getRpm());
   Serial.println();
 
-  //stepper.setSpeed(60);
 }
 
 void loop() {
 
   char msg_temp[10];
 
-    int stepsLeft = stepper.getStepsLeft();
+    //int stepsLeft = stepper.getStepsLeft();
 #ifdef wifi
     //garante funcionamento das conexões WiFi e ao broker MQTT
     VerificaConexoesWiFIEMQTT();
@@ -112,22 +113,9 @@ void loop() {
 
     if(flagOut)
     {
-      stepper.moveTo (moveClockwise, passo);
-      //stepper.newMoveDegrees (moveClockwise, 180);
-      // now we've moved 4096 steps
-  
-      // let's wait one second
-
-      passo+=speed_motor;
-      Serial.print("passo: ");
-      Serial.println(passo);
-      Serial.print("speed motor: ");
-      Serial.println(speed_motor);
-      
-      if(passo>4096) passo = 0;
-      //Serial.println(stepper.getStep());
-  
-      delay(10);
+      digitalWrite(D5, 1);
+      Serial.println("MOTOR ON");
+      delay(50);
       
 #ifdef wifi
           MQTT.publish(TopicMotorFlag, "L");
@@ -137,7 +125,7 @@ void loop() {
 #ifdef wifi
       MQTT.publish(TopicMotorFlag, "D");
 #endif
-      //stepper.stop();
+      digitalWrite(D5, 0);
     }
 
   ////////////////////////////////
@@ -229,20 +217,26 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length)
 
     if (msg.equals("A"))
     {
-        speed_motor+=5;
-        if(speed_motor > 180) speed_motor = 180;
+        speed_stepper+=5;
+        if(speed_stepper > 180) speed_stepper = 180;
         Serial.println("SPEED MOTOR UP");
-        Serial.println(speed_motor);
+        Serial.println(speed_stepper);
+        digitalWrite(D6, 1);
+        delay(10);
+        digitalWrite(D6, 0);
     }
 
     if (msg.equals("B"))
     {
-        speed_motor-=5;
-        if(speed_motor < 0) speed_motor = 0;
+        speed_stepper-=5;
+        if(speed_stepper < 0) speed_stepper = 0;
         Serial.println("SPEED MOTOR DOWN");
-        Serial.println(speed_motor);
+        Serial.println(speed_stepper);
+        digitalWrite(D7, 1);
+        delay(10);
+        digitalWrite(D7, 0);
     }
-    sprintf (msg_speed, "%d", speed_motor);
+    sprintf (msg_speed, "%d", speed_stepper);
     MQTT.publish(TopicSpeed, msg_speed);
     
 }
